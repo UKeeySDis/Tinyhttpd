@@ -54,7 +54,7 @@ void unimplemented(int);
 /**********************************************************************/
 void accept_request(void *arg)
 {
-    int client = (intptr_t)arg;
+    int client = *(int*)arg;
     char buf[1024];
     size_t numchars;
     char method[255];
@@ -64,8 +64,7 @@ void accept_request(void *arg)
     struct stat st;
     int cgi = 0;      /* becomes true if server decides this is a CGI
                        * program */
-    char *query_string = NULL;
-
+    char *query_string = NULL;   
     numchars = get_line(client, buf, sizeof(buf));
     i = 0; j = 0;
     while (!ISspace(buf[i]) && (i < sizeof(method) - 1))
@@ -494,6 +493,7 @@ int main(void)
     struct sockaddr_in client_name;
     socklen_t  client_name_len = sizeof(client_name);
     pthread_t newthread;
+    pthread_attr_t new_attr;
 
     server_sock = startup(&port);
     printf("httpd running on port %d\n", port);
@@ -506,8 +506,16 @@ int main(void)
         if (client_sock == -1)
             error_die("accept");
         /* accept_request(&client_sock); */
-        if (pthread_create(&newthread , NULL, (void *)accept_request, (void *)&client_sock) != 0)
+
+        pthread_attr_init(&new_attr);
+        
+        if(pthread_attr_setdetachstate(&new_attr, PTHREAD_CREATE_DETACHED) != 0)
+        {
+            perror("set detach error");    
+        }
+        if (pthread_create(&newthread , &new_attr, (void *)accept_request, (void *)&client_sock) != 0)
             perror("pthread_create");
+        pthread_attr_destroy(&new_attr);
     }
 
     close(server_sock);
